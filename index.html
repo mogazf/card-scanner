@@ -431,14 +431,17 @@ async function analyze(){
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-haiku-4-5-20251001",
-        max_tokens:1500,
+        model:"claude-sonnet-4-6",
+        max_tokens:2000,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:finalMime,data:finalB64}},
-          {type:"text",text:`Extract all text from this business card image and return ONLY a JSON object with no other text.
+          {type:"text",text:`You are a business analyst expert. Look at this business card image carefully.
 
-JSON structure:
-{"contact":{"name":"","title":"","company":"","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"تقنية","industry_detail":"","company_size":"متوسطة","score":70,"summary":"","pros":["","",""],"cons":["",""],"recommendation":"","decision":"يستحق الدراسة","questions":["",""]}}`}
+Step 1: Extract ALL contact information visible on the card.
+Step 2: Based on the company name, industry, and job title — perform a DEEP business analysis. Use your knowledge about this company or similar companies in this sector to provide real insights about their reputation, market position, strengths and weaknesses. Give genuine pros and cons that would help someone decide whether to buy from or partner with this company. Score them honestly (0-100).
+
+Return ONLY a raw JSON object with no markdown, no backticks, no extra text:
+{"contact":{"name":"full name","title":"job title","company":"company name","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"one of: تقنية/عقارات/غذاء/صحة/تعليم/مالية/طاقة/استشارات/تجزئة/لوجستيات/سياحة/إعلام/أخرى","industry_detail":"detailed industry description in Arabic","company_size":"صغيرة or متوسطة or كبيرة","score":75,"summary":"3-4 sentences about the company reputation and market position in Arabic","pros":["specific strength 1 in Arabic","specific strength 2 in Arabic","specific strength 3 in Arabic"],"cons":["specific weakness 1 in Arabic","specific weakness 2 in Arabic"],"recommendation":"detailed recommendation in Arabic about whether to buy/partner with them and why","decision":"ينصح or يستحق الدراسة or لا ينصح","questions":["important question to ask them 1 in Arabic","important question to ask them 2 in Arabic"]}}`}
         ]}]
       })
     });
