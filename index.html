@@ -1,1 +1,701 @@
-hello
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Card Scanner Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07090f;--s1:#0e1220;--s2:#141929;--s3:#1a2235;
+  --border:#1e2d45;--border2:#243350;
+  --cyan:#00d4ff;--purple:#7c3aed;--gold:#f59e0b;
+  --green:#10b981;--red:#ef4444;
+  --text:#e2e8f0;--muted:#4a5568;--muted2:#718096;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
+.app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto}
+.tabs{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;z-index:20}
+.tab{flex:1;padding:12px 8px;text-align:center;font-size:11px;font-weight:700;color:var(--muted2);cursor:pointer;transition:all .2s;border-bottom:2px solid transparent}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab span{display:block;font-size:17px;margin-bottom:2px}
+.views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;overflow-y:auto;display:none;padding-bottom:24px}
+.view.active{display:block}
+.view::-webkit-scrollbar{width:3px}
+.view::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* API KEY BANNER */
+.key-banner{margin:12px 16px 0;background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.05));border:1px solid rgba(245,158,11,.3);border-radius:14px;padding:13px 14px}
+.key-banner-title{font-size:12px;font-weight:800;color:var(--gold);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.key-banner p{font-size:11px;font-family:'Tajawal';color:var(--muted2);margin-bottom:10px;line-height:1.6}
+.key-input-row{display:flex;gap:7px}
+.key-input{flex:1;padding:9px 12px;border-radius:10px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Tajawal';font-size:12px;outline:none;transition:border .2s;direction:ltr}
+.key-input:focus{border-color:var(--gold)}
+.key-save-btn{padding:9px 14px;border-radius:10px;border:none;background:var(--gold);color:#000;font-family:'Cairo';font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;transition:all .2s}
+.key-save-btn:hover{opacity:.85}
+.key-set-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:10px}
+.key-set-info{font-size:11px;font-family:'Tajawal';color:var(--green);display:flex;align-items:center;gap:6px}
+.key-change-btn{font-size:11px;color:var(--muted2);background:none;border:none;cursor:pointer;font-family:'Tajawal';text-decoration:underline}
+
+/* SCAN */
+.scan-wrap{padding:16px}
+.scanner-box{position:relative;border-radius:20px;overflow:hidden;background:var(--s2);border:2px dashed var(--border2);cursor:pointer;transition:all .3s;min-height:195px;display:flex;align-items:center;justify-content:center}
+.scanner-box.active{border:2px solid var(--cyan);box-shadow:0 0 28px rgba(0,212,255,.12)}
+.scanner-box.scanning{border-color:var(--cyan)}
+#video-feed{width:100%;height:195px;object-fit:cover;display:none;border-radius:18px}
+#preview-img{width:100%;height:195px;object-fit:contain;display:none;border-radius:18px;background:#000}
+.scan-ph{display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px}
+.scan-ring{width:58px;height:58px;border-radius:14px;border:2px solid var(--cyan);display:flex;align-items:center;justify-content:center;font-size:24px;animation:rpulse 2s ease-in-out infinite}
+@keyframes rpulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,255,.3)}50%{box-shadow:0 0 0 10px rgba(0,212,255,0)}}
+.scan-ph h3{font-size:15px;font-weight:700}
+.scan-ph p{font-size:12px;color:var(--muted2);text-align:center;font-family:'Tajawal';line-height:1.6}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:sanim 1.8s linear infinite;display:none}
+@keyframes sanim{0%{top:0;opacity:1}100%{top:100%;opacity:0}}
+.scanner-box.scanning .scan-line{display:block}
+.btn-row{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;padding:11px;border-radius:12px;border:none;font-family:'Cairo';font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-ghost{background:var(--s2);color:var(--text);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:var(--cyan)}
+.btn-analyze{width:100%;padding:13px;border-radius:14px;border:none;font-family:'Cairo';font-size:15px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,var(--purple),#4c1d95);color:#fff;margin-top:10px;transition:all .2s}
+.btn-analyze:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(124,58,237,.4)}
+.btn-analyze:disabled{opacity:.3;cursor:not-allowed}
+
+/* LOADING */
+.loading-wrap{padding:20px;display:none}
+.loading-card{background:var(--s1);border-radius:20px;padding:22px;border:1px solid var(--border);text-align:center}
+.spinner{width:42px;height:42px;border:3px solid var(--border2);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.steps{display:flex;flex-direction:column;gap:6px;margin-top:13px}
+.step{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:9px;background:var(--s2);font-size:12px;font-family:'Tajawal';opacity:.3;transition:all .35s;border:1px solid transparent}
+.step.active{opacity:1;border-color:var(--cyan);color:var(--cyan)}
+.step.done{opacity:1;border-color:var(--green);color:var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* RESULT INNER */
+.result-inner{padding:0 16px 16px;display:none}
+.contact-card{background:linear-gradient(140deg,var(--s3),var(--s2));border-radius:18px;padding:18px;border:1px solid var(--border2);margin-bottom:9px;position:relative;overflow:hidden}
+.contact-card::after{content:'';position:absolute;top:-20px;left:-20px;width:110px;height:110px;background:radial-gradient(circle,rgba(0,212,255,.07),transparent);border-radius:50%;pointer-events:none}
+.cn{font-size:18px;font-weight:900;line-height:1.2}
+.ct{font-size:12px;color:var(--cyan);font-family:'Tajawal';margin-top:2px}
+.cc{font-size:14px;font-weight:700;color:var(--gold);margin:5px 0 13px;display:flex;align-items:center;gap:5px}
+.cf{display:flex;flex-direction:column;gap:6px}
+.cfi{display:flex;align-items:center;gap:9px;padding:7px 11px;background:rgba(255,255,255,.04);border-radius:9px}
+.cfi-icon{font-size:13px;flex-shrink:0}
+.cfi-val{font-size:12px;font-family:'Tajawal';direction:ltr;text-align:right;flex:1}
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.abt{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-radius:11px;border:none;font-family:'Cairo';font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s}
+.abt:hover{transform:translateY(-2px)}
+.abt-wa{background:#25d366;color:#fff}
+.abt-em{background:#ea4335;color:#fff}
+.abt-ph{background:var(--s3);color:var(--text);border:1px solid var(--border2)}
+.abt-li{background:#0077b5;color:#fff}
+.analysis-card{background:var(--s1);border-radius:18px;border:1px solid var(--border);overflow:hidden;margin-bottom:9px}
+.an-header{padding:13px 18px;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(0,212,255,.08));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+.an-body{padding:16px}
+.score-row{display:flex;align-items:center;gap:13px;padding:13px;background:var(--s2);border-radius:13px;margin-bottom:13px}
+.sc-circle{width:64px;height:64px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.sc-circle svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.sc-num{font-size:19px;font-weight:900;position:relative;z-index:1;line-height:1}
+.sc-lbl{font-size:9px;color:var(--muted2);position:relative;z-index:1}
+.sc-info h4{font-size:13px;font-weight:800;margin-bottom:3px}
+.sc-info p{font-size:11px;color:var(--muted2);font-family:'Tajawal';line-height:1.5}
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.badge{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;border:1px solid}
+.b-blue{background:rgba(0,212,255,.1);color:var(--cyan);border-color:rgba(0,212,255,.25)}
+.b-gold{background:rgba(245,158,11,.1);color:var(--gold);border-color:rgba(245,158,11,.25)}
+.b-green{background:rgba(16,185,129,.1);color:var(--green);border-color:rgba(16,185,129,.25)}
+.b-red{background:rgba(239,68,68,.1);color:var(--red);border-color:rgba(239,68,68,.25)}
+.pc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.pros-box{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:11px;padding:11px}
+.cons-box{background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:11px;padding:11px}
+.pc-title{font-size:11px;font-weight:800;margin-bottom:7px;display:flex;align-items:center;gap:4px}
+.pros-box .pc-title{color:var(--green)}
+.cons-box .pc-title{color:var(--red)}
+.pc-item{font-size:11px;font-family:'Tajawal';padding:2px 0;display:flex;gap:5px;line-height:1.5;opacity:.88}
+.rec-box{padding:12px;border-radius:11px;background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(245,158,11,.04));border:1px solid rgba(245,158,11,.25);margin-bottom:12px}
+.rec-title{font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.rec-text{font-size:12px;font-family:'Tajawal';line-height:1.7;opacity:.9}
+.q-title{font-size:10px;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.q-item{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;background:var(--s2);border-radius:9px;margin-bottom:5px;font-size:11px;font-family:'Tajawal';line-height:1.5}
+.save-btn{width:100%;padding:13px;border-radius:13px;border:none;font-family:'Cairo';font-size:14px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--green),#059669);color:#fff;margin-bottom:8px;transition:all .2s}
+.save-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(16,185,129,.35)}
+.save-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.reset-btn{width:100%;padding:12px;border-radius:12px;border:1px solid var(--border2);background:transparent;font-family:'Cairo';font-size:13px;color:var(--muted2);cursor:pointer;transition:all .2s}
+.reset-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* CARDS */
+.cards-wrap{padding:14px}
+.cards-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.cards-header h2{font-size:16px;font-weight:900}
+.total-badge{background:var(--purple);color:#fff;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700}
+.search-box{position:relative;margin-bottom:11px}
+.search-box input{width:100%;padding:11px 14px 11px 38px;border-radius:12px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Tajawal';font-size:13px;outline:none;transition:border .2s}
+.search-box input:focus{border-color:var(--cyan)}
+.search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none}
+.sectors-scroll{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}
+.sectors-scroll::-webkit-scrollbar{display:none}
+.sector-chip{flex-shrink:0;padding:6px 13px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--border2);color:var(--muted2);transition:all .2s;white-space:nowrap;font-family:'Tajawal'}
+.sector-chip.active{background:rgba(0,212,255,.12);border-color:var(--cyan);color:var(--cyan)}
+.sort-row{display:flex;align-items:center;gap:8px;margin-bottom:11px}
+.sort-lbl{font-size:11px;color:var(--muted2);font-family:'Tajawal';flex-shrink:0}
+.sort-btns{display:flex;gap:5px}
+.sort-btn{padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--s2);color:var(--muted2);font-family:'Tajawal';font-size:11px;cursor:pointer;transition:all .2s}
+.sort-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.08)}
+.card-item{background:var(--s1);border-radius:15px;border:1px solid var(--border);margin-bottom:8px;overflow:hidden;cursor:pointer;transition:all .2s}
+.card-item:hover{border-color:var(--border2);transform:translateX(-2px)}
+.card-item-header{display:flex;align-items:center;gap:11px;padding:13px}
+.card-avatar{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0;color:#fff}
+.card-info{flex:1;min-width:0}
+.card-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-role{font-size:11px;color:var(--muted2);font-family:'Tajawal';white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-company{font-size:12px;color:var(--gold);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-meta{display:flex;align-items:center;gap:6px;padding:0 13px 11px}
+.card-score-mini{font-size:10px;font-weight:800;margin-right:auto}
+.card-actions-mini{display:flex;gap:5px}
+.mini-btn{width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;text-decoration:none}
+.mini-btn:hover{transform:scale(1.12)}
+.mini-wa{background:#25d366;color:#fff}
+.mini-em{background:#ea4335;color:#fff}
+.mini-del{background:rgba(239,68,68,.12);color:var(--red)}
+.empty{text-align:center;padding:50px 20px;color:var(--muted2)}
+.empty-icon{font-size:46px;margin-bottom:11px;opacity:.5}
+.empty p{font-size:13px;font-family:'Tajawal';line-height:1.7}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:flex-end;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--s1);border-radius:24px 24px 0 0;width:100%;max-width:480px;margin:0 auto;max-height:90vh;overflow-y:auto;padding:20px;position:relative}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.modal-close{position:absolute;top:16px;left:20px;background:var(--s2);border:1px solid var(--border2);color:var(--muted2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+
+/* STATS */
+.stats-wrap{padding:14px}
+.stat-sec-title{font-size:10px;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px;margin-top:16px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-card{background:var(--s1);border-radius:15px;padding:15px;border:1px solid var(--border)}
+.stat-num{font-size:28px;font-weight:900;line-height:1}
+.stat-lbl{font-size:11px;color:var(--muted2);font-family:'Tajawal';margin-top:3px}
+.sector-stat{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s1);border-radius:12px;border:1px solid var(--border);margin-bottom:6px}
+.sector-stat-name{flex:1;font-size:13px;font-family:'Tajawal'}
+.ssbar-wrap{width:76px;height:5px;background:var(--border2);border-radius:3px;overflow:hidden}
+.ssbar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width .6s ease}
+.sscount{font-size:12px;font-weight:700;color:var(--cyan);min-width:18px;text-align:center}
+.rec-stat{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--s1);border-radius:12px;border:1px solid var(--border);margin-bottom:6px}
+.rec-stat-lbl{flex:1;font-size:13px;font-family:'Tajawal'}
+.rec-stat-n{font-size:14px;font-weight:800}
+
+/* TOAST */
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#fff;padding:9px 20px;border-radius:12px;font-family:'Tajawal';font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:200;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
+    <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
+    <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
+  </div>
+  <div class="views">
+
+    <!-- SCAN VIEW -->
+    <div class="view active" id="view-scan">
+
+      <!-- API KEY BANNER -->
+      <div class="key-banner" id="key-banner">
+        <div class="key-banner-title">🔑 مطلوب: Anthropic API Key</div>
+        <p>التطبيق يستخدم Claude AI لقراءة البزنس كارد. أدخل API Key الخاص بك من <strong style="color:var(--gold)">console.anthropic.com</strong></p>
+        <div class="key-input-row">
+          <input class="key-input" id="key-input" type="password" placeholder="sk-ant-api03-..." oninput="checkKeyInput()">
+          <button class="key-save-btn" id="key-save-btn" onclick="saveKey()" disabled>حفظ</button>
+        </div>
+      </div>
+      <div class="key-banner" id="key-set-banner" style="display:none">
+        <div class="key-set-bar">
+          <span class="key-set-info">✅ API Key محفوظ وجاهز للاستخدام</span>
+          <button class="key-change-btn" onclick="changeKey()">تغيير</button>
+        </div>
+      </div>
+
+      <div class="scan-wrap" id="scan-wrap">
+        <div class="scanner-box" id="scanner-box" onclick="document.getElementById('file-input').click()">
+          <div class="scan-line"></div>
+          <video id="video-feed" autoplay playsinline></video>
+          <img id="preview-img" alt="">
+          <div class="scan-ph" id="scan-ph">
+            <div class="scan-ring">📷</div>
+            <h3>امسح البزنس كارد</h3>
+            <p>اضغط لاختيار صورة<br>من الكاميرا أو المعرض</p>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="image/*" capture="environment">
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="openCamera()">📷 الكاميرا</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('file-input').click()">🖼️ المعرض</button>
+        </div>
+        <button class="btn-analyze" id="analyze-btn" onclick="analyze()" disabled>✨ تحليل وحفظ</button>
+      </div>
+      <div class="loading-wrap" id="loading-wrap">
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <p style="font-size:14px;font-weight:700;margin-bottom:3px">جاري التحليل...</p>
+          <p style="font-size:12px;color:var(--muted2);font-family:Tajawal">يتم قراءة الكارت وتحليل الشركة</p>
+          <div class="steps">
+            <div class="step" id="s1"><div class="dot"></div>قراءة البزنس كارد 🔍</div>
+            <div class="step" id="s2"><div class="dot"></div>استخراج بيانات الاتصال 📋</div>
+            <div class="step" id="s3"><div class="dot"></div>البحث عن الشركة 🌐</div>
+            <div class="step" id="s4"><div class="dot"></div>تحليل المميزات والعيوب ⚖️</div>
+            <div class="step" id="s5"><div class="dot"></div>إعداد التقرير 📊</div>
+          </div>
+        </div>
+      </div>
+      <div class="result-inner" id="result-inner"></div>
+    </div>
+
+    <!-- CARDS VIEW -->
+    <div class="view" id="view-cards">
+      <div class="cards-wrap">
+        <div class="cards-header">
+          <h2>الكروت المحفوظة</h2>
+          <span class="total-badge" id="total-badge">0</span>
+        </div>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="ابحث باسم أو شركة أو قطاع..." oninput="renderCards()">
+        </div>
+        <div class="sectors-scroll" id="sectors-scroll"></div>
+        <div class="sort-row">
+          <span class="sort-lbl">ترتيب:</span>
+          <div class="sort-btns">
+            <button class="sort-btn active" onclick="setSort('date')" id="sort-date">الأحدث</button>
+            <button class="sort-btn" onclick="setSort('score')" id="sort-score">التقييم</button>
+            <button class="sort-btn" onclick="setSort('name')" id="sort-name">الاسم</button>
+          </div>
+        </div>
+        <div id="cards-list"></div>
+      </div>
+    </div>
+
+    <!-- STATS VIEW -->
+    <div class="view" id="view-stats">
+      <div class="stats-wrap" id="stats-content"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DB='biz_v3';
+const KEY_STORE='anthro_key';
+function loadCards(){try{return JSON.parse(localStorage.getItem(DB)||'[]')}catch{return[]}}
+function saveCards(a){localStorage.setItem(DB,JSON.stringify(a))}
+function addCard(c){const a=loadCards();c.id=Date.now();c.savedAt=new Date().toISOString();a.unshift(c);saveCards(a);return c}
+function delCard(id){saveCards(loadCards().filter(c=>c.id!==id))}
+
+// ── API KEY MANAGEMENT ──
+function getKey(){return localStorage.getItem(KEY_STORE)||''}
+function saveKey(){
+  const v=document.getElementById('key-input').value.trim();
+  if(!v.startsWith('sk-'))return showToast('⚠️ Key يجب أن يبدأ بـ sk-');
+  localStorage.setItem(KEY_STORE,v);
+  showKeyState(true);showToast('✅ تم حفظ API Key');
+}
+function changeKey(){
+  localStorage.removeItem(KEY_STORE);
+  document.getElementById('key-input').value='';
+  showKeyState(false);
+}
+function checkKeyInput(){
+  const v=document.getElementById('key-input').value.trim();
+  document.getElementById('key-save-btn').disabled=v.length<20;
+}
+function showKeyState(saved){
+  document.getElementById('key-banner').style.display=saved?'none':'block';
+  document.getElementById('key-set-banner').style.display=saved?'block':'none';
+}
+// Init key state on load
+window.addEventListener('DOMContentLoaded',()=>{
+  if(getKey())showKeyState(true);
+});
+
+let capturedImage=null,stream=null,currentSort='date',activeSector='all',pendingResult=null;
+
+function switchTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['scan','cards','stats'][i]===n));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+n).classList.add('active');
+  if(n==='cards')renderCards();
+  if(n==='stats')renderStats();
+}
+
+document.getElementById('file-input').addEventListener('change',function(e){
+  const f=e.target.files[0];if(!f)return;
+  stopCamera();
+  const r=new FileReader();
+  r.onload=ev=>{capturedImage=ev.target.result;showPreview(capturedImage)};
+  r.readAsDataURL(f);e.target.value='';
+});
+
+function showPreview(src){
+  document.getElementById('scan-ph').style.display='none';
+  document.getElementById('video-feed').style.display='none';
+  const img=document.getElementById('preview-img');img.src=src;img.style.display='block';
+  document.getElementById('scanner-box').classList.add('active');
+  document.getElementById('analyze-btn').disabled=false;
+  document.getElementById('result-inner').style.display='none';
+  pendingResult=null;
+}
+
+function openCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){document.getElementById('file-input').click();return}
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(s=>{
+      stream=s;const v=document.getElementById('video-feed');
+      v.srcObject=s;v.style.display='block';
+      document.getElementById('scan-ph').style.display='none';
+      document.getElementById('preview-img').style.display='none';
+      document.getElementById('scanner-box').classList.add('scanning');
+      document.getElementById('scanner-box').onclick=captureFromCamera;
+    }).catch(()=>document.getElementById('file-input').click());
+}
+function captureFromCamera(){
+  const v=document.getElementById('video-feed');
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);capturedImage=c.toDataURL('image/jpeg',.9);
+  stopCamera();showPreview(capturedImage);
+  document.getElementById('scanner-box').onclick=()=>document.getElementById('file-input').click();
+}
+function stopCamera(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  document.getElementById('scanner-box').classList.remove('scanning');
+}
+
+// Resize image to prevent large payload CORS/size issues
+function resizeImage(dataUrl, maxPx){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){
+        if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}
+        else{w=Math.round(w*maxPx/h);h=maxPx;}
+      }
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(c.toDataURL('image/jpeg',0.85));
+    };
+    img.src=dataUrl;
+  });
+}
+
+async function analyze(){
+  if(!capturedImage)return;
+  const apiKey=getKey();
+  if(!apiKey){showToast('⚠️ أدخل API Key أولاً');return;}
+  document.getElementById('scan-wrap').style.display='none';
+  document.getElementById('loading-wrap').style.display='block';
+  document.getElementById('result-inner').style.display='none';
+  const ids=['s1','s2','s3','s4','s5'];
+  for(let i=0;i<ids.length;i++){
+    await delay(560);
+    if(i>0)document.getElementById(ids[i-1]).className='step done';
+    document.getElementById(ids[i]).className='step active';
+  }
+  try{
+    // Resize image to max 1200px to avoid large payload issues
+    const resizedB64 = await resizeImage(capturedImage, 1200);
+    const finalB64 = resizedB64.split(',')[1];
+    const finalMime = resizedB64.split(';')[0].split(':')[1] || 'image/jpeg';
+
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":apiKey,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-haiku-4-5-20251001",
+        max_tokens:1500,
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:finalMime,data:finalB64}},
+          {type:"text",text:`Extract all text from this business card image and return ONLY a JSON object with no other text.
+
+JSON structure:
+{"contact":{"name":"","title":"","company":"","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"تقنية","industry_detail":"","company_size":"متوسطة","score":70,"summary":"","pros":["","",""],"cons":["",""],"recommendation":"","decision":"يستحق الدراسة","questions":["",""]}}`}
+        ]}]
+      })
+    });
+
+    // Get raw text first to debug
+    const rawText = await res.text();
+
+    if(!res.ok){
+      let errMsg = 'HTTP '+res.status;
+      try{ const e=JSON.parse(rawText); errMsg=e.error?.message||errMsg; }catch{}
+      throw new Error(errMsg);
+    }
+
+    let data;
+    try{ data=JSON.parse(rawText); }
+    catch{ throw new Error('Server response not JSON: '+rawText.slice(0,80)); }
+
+    await delay(300);
+    document.getElementById(ids[4]).className='step done'; await delay(300);
+
+    const txt = data.content?.find(b=>b.type==='text')?.text || '';
+    if(!txt) throw new Error('Empty response from API');
+
+    // Clean and extract JSON
+    let clean = txt.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const start = clean.indexOf('{');
+    const end   = clean.lastIndexOf('}');
+    if(start===-1||end===-1) throw new Error('No JSON object in response. Got: '+clean.slice(0,100));
+    clean = clean.slice(start, end+1);
+    pendingResult = JSON.parse(clean);
+  }catch(e){
+    document.getElementById('loading-wrap').style.display='none';
+    document.getElementById('scan-wrap').style.display='block';
+    ids.forEach(id=>document.getElementById(id).className='step');
+    const msg=e.message||'';
+    if(msg.includes('401'))showToast('❌ API Key غير صحيح');
+    else if(msg.includes('429'))showToast('⚠️ تجاوزت الحد، حاول لاحقاً');
+    else showToast('❌ '+msg.slice(0,80));
+    return;
+  }
+  document.getElementById('loading-wrap').style.display='none';
+  document.getElementById('scan-wrap').style.display='block';
+  ids.forEach(id=>document.getElementById(id).className='step');
+  showResultPanel(pendingResult);
+}
+
+function fld(icon,val){return`<div class="cfi"><span class="cfi-icon">${icon}</span><span class="cfi-val">${val}</span></div>`}
+
+function buildContactHTML(c,a){
+  const score=a.score||70;
+  const sc=score>=75?'#10b981':score>=55?'#f59e0b':'#ef4444';
+  const circ=2*Math.PI*27,dash=(score/100)*circ;
+  const dm={'ينصح':'b-green','يستحق الدراسة':'b-gold','لا ينصح':'b-red'};
+  let flds='';
+  if(c.phone)flds+=fld('📞',c.phone);
+  if(c.mobile)flds+=fld('📱',c.mobile);
+  if(c.email)flds+=fld('✉️',c.email);
+  if(c.website)flds+=fld('🌐',c.website);
+  if(c.address)flds+=fld('📍',c.address);
+  const num=(c.mobile||c.phone||'').replace(/\s+/g,'').replace('+','');
+  let acts='';
+  if(num)acts+=`<a class="abt abt-wa" href="https://wa.me/${num}" target="_blank">💬 واتساب</a><a class="abt abt-ph" href="tel:${c.mobile||c.phone}">📞 اتصال</a>`;
+  if(c.email)acts+=`<a class="abt abt-em" href="mailto:${c.email}" target="_blank">✉️ إيميل</a>`;
+  if(c.linkedin){const li=c.linkedin.startsWith('http')?c.linkedin:'https://'+c.linkedin;acts+=`<a class="abt abt-li" href="${li}" target="_blank">💼 لينكدإن</a>`}
+  const pros=(a.pros||[]).map(p=>`<div class="pc-item"><span>✓</span>${p}</div>`).join('');
+  const cons=(a.cons||[]).map(c=>`<div class="pc-item"><span>✗</span>${c}</div>`).join('');
+  const qs=(a.questions||[]).map(q=>`<div class="q-item">❓ ${q}</div>`).join('');
+  return{flds,acts,score,sc,circ,dash,dm,pros,cons,qs};
+}
+
+function showResultPanel(r){
+  const el=document.getElementById('result-inner');el.style.display='block';
+  const{contact:c,analysis:a}=r;
+  const{flds,acts,score,sc,circ,dash,dm,pros,cons,qs}=buildContactHTML(c,a);
+  el.innerHTML=`
+    <div class="contact-card">
+      <div class="cn">${c.name||'غير معروف'}</div>
+      <div class="ct">${c.title||''}</div>
+      <div class="cc">🏢 ${c.company||''}</div>
+      <div class="cf">${flds}</div>
+    </div>
+    <div class="act-grid">${acts}</div>
+    <div class="analysis-card">
+      <div class="an-header">🧠 تحليل الذكاء الاصطناعي</div>
+      <div class="an-body">
+        <div class="score-row">
+          <div class="sc-circle" style="color:${sc}">
+            <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="var(--border2)" stroke-width="4"/><circle cx="32" cy="32" r="27" fill="none" stroke="${sc}" stroke-width="4" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/></svg>
+            <span class="sc-num">${score}</span><span class="sc-lbl">/100</span>
+          </div>
+          <div class="sc-info"><h4>${c.company||''}</h4><p>${a.summary||''}</p>
+            <div class="badges"><span class="badge b-blue">🏭 ${a.sector||''}</span><span class="badge b-gold">📊 ${a.company_size||''}</span></div>
+          </div>
+        </div>
+        <div class="pc-grid"><div class="pros-box"><div class="pc-title">✅ المميزات</div>${pros}</div><div class="cons-box"><div class="pc-title">⚠️ العيوب</div>${cons}</div></div>
+        <div class="rec-box"><div class="rec-title">💡 التوصية <span class="badge ${dm[a.decision]||'b-gold'}">${a.decision||''}</span></div><div class="rec-text">${a.recommendation||''}</div></div>
+        ${qs?`<div class="q-title">أسئلة مقترحة</div>${qs}`:''}
+      </div>
+    </div>
+    <button class="save-btn" id="save-btn" onclick="saveCard()">💾 حفظ في مكتبتي</button>
+    <button class="reset-btn" onclick="resetScan()">🔄 مسح جديد</button>
+  `;
+}
+
+function saveCard(){
+  if(!pendingResult)return;
+  pendingResult.image=capturedImage;
+  addCard(pendingResult);
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true;btn.textContent='✅ تم الحفظ بنجاح';
+  showToast('✅ تم حفظ الكارت في مكتبتك!');
+}
+
+function resetScan(){
+  capturedImage=null;pendingResult=null;
+  document.getElementById('preview-img').style.display='none';
+  document.getElementById('preview-img').src='';
+  document.getElementById('scan-ph').style.display='flex';
+  document.getElementById('scanner-box').classList.remove('active');
+  document.getElementById('scanner-box').onclick=()=>document.getElementById('file-input').click();
+  document.getElementById('analyze-btn').disabled=true;
+  document.getElementById('result-inner').style.display='none';
+  document.getElementById('result-inner').innerHTML='';
+}
+
+function setSort(s){
+  currentSort=s;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sort-'+s).classList.add('active');
+  renderCards();
+}
+
+function renderCards(){
+  let cards=loadCards();
+  const q=(document.getElementById('search-input')?.value||'').trim().toLowerCase();
+  if(q)cards=cards.filter(c=>[c.contact.name,c.contact.company,c.contact.title,c.analysis.sector,c.analysis.industry_detail].some(v=>v&&v.toLowerCase().includes(q)));
+  if(activeSector!=='all')cards=cards.filter(c=>c.analysis.sector===activeSector);
+  if(currentSort==='score')cards.sort((a,b)=>(b.analysis.score||0)-(a.analysis.score||0));
+  else if(currentSort==='name')cards.sort((a,b)=>(a.contact.name||'').localeCompare(b.contact.name||'','ar'));
+  else cards.sort((a,b)=>b.id-a.id);
+
+  const all=loadCards();
+  const sectors=[...new Set(all.map(c=>c.analysis.sector).filter(Boolean))];
+  const sc=document.getElementById('sectors-scroll');
+  if(sc)sc.innerHTML=`<div class="sector-chip ${activeSector==='all'?'active':''}" onclick="setSector('all')">الكل (${all.length})</div>`
+    +sectors.map(s=>{const n=all.filter(c=>c.analysis.sector===s).length;return`<div class="sector-chip ${activeSector===s?'active':''}" onclick="setSector('${s}')">${sEmoji(s)} ${s} (${n})</div>`}).join('');
+
+  document.getElementById('total-badge').textContent=all.length;
+  const el=document.getElementById('cards-list');
+  if(!cards.length){el.innerHTML=`<div class="empty"><div class="empty-icon">📭</div><p>${all.length?'لا توجد نتائج مطابقة':'لم تحفظ أي كارت بعد.<br>امسح أول بزنس كارد الآن!'}</p></div>`;return}
+  el.innerHTML=cards.map(c=>cardItem(c)).join('');
+}
+
+function setSector(s){activeSector=s;renderCards()}
+
+function cardItem(c){
+  const{contact:ct,analysis:a}=c;
+  const score=a.score||0;
+  const sc=score>=75?'var(--green)':score>=55?'var(--gold)':'var(--red)';
+  const col=sColor(a.sector);
+  const ini=(ct.name||'؟').split(' ').slice(0,2).map(w=>w[0]).join('');
+  const num=(ct.mobile||ct.phone||'').replace(/\s+/g,'').replace('+','');
+  return`<div class="card-item" onclick="openDetail(${c.id})">
+    <div class="card-item-header">
+      <div class="card-avatar" style="background:${col}">${ini}</div>
+      <div class="card-info">
+        <div class="card-name">${ct.name||'غير معروف'}</div>
+        <div class="card-role">${ct.title||''}</div>
+        <div class="card-company">${ct.company||''}</div>
+      </div>
+    </div>
+    <div class="card-meta">
+      <span class="badge b-blue" style="font-size:10px">${sEmoji(a.sector)} ${a.sector||'غير محدد'}</span>
+      <span class="card-score-mini" style="color:${sc}">⭐ ${score}</span>
+      <div class="card-actions-mini" onclick="event.stopPropagation()">
+        ${num?`<a class="mini-btn mini-wa" href="https://wa.me/${num}" target="_blank">💬</a>`:''}
+        ${ct.email?`<a class="mini-btn mini-em" href="mailto:${ct.email}" target="_blank">✉️</a>`:''}
+        <button class="mini-btn mini-del" onclick="confirmDel(${c.id})">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmDel(id){if(confirm('حذف هذا الكارت؟')){delCard(id);renderCards();showToast('🗑️ تم الحذف')}}
+
+function openDetail(id){
+  const card=loadCards().find(c=>c.id===id);if(!card)return;
+  const{contact:c,analysis:a}=card;
+  const{flds,acts,score,sc,circ,dash,dm,pros,cons,qs}=buildContactHTML(c,a);
+  const date=new Date(card.savedAt).toLocaleDateString('ar-SA',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('modal-body').innerHTML=`
+    <div style="font-size:11px;color:var(--muted2);font-family:Tajawal;margin-bottom:13px">📅 محفوظ: ${date}</div>
+    ${card.image?`<img src="${card.image}" style="width:100%;height:130px;object-fit:contain;background:#000;border-radius:11px;margin-bottom:13px">`:''}
+    <div class="contact-card">
+      <div class="cn">${c.name||'غير معروف'}</div>
+      <div class="ct">${c.title||''}</div>
+      <div class="cc">🏢 ${c.company||''}</div>
+      <div class="cf">${flds}</div>
+    </div>
+    <div class="act-grid">${acts}</div>
+    <div class="analysis-card">
+      <div class="an-header">🧠 تحليل الذكاء الاصطناعي</div>
+      <div class="an-body">
+        <div class="score-row">
+          <div class="sc-circle" style="color:${sc}">
+            <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="var(--border2)" stroke-width="4"/><circle cx="32" cy="32" r="27" fill="none" stroke="${sc}" stroke-width="4" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/></svg>
+            <span class="sc-num">${score}</span><span class="sc-lbl">/100</span>
+          </div>
+          <div class="sc-info"><h4>${c.company||''}</h4><p>${a.summary||''}</p>
+            <div class="badges"><span class="badge b-blue">🏭 ${a.sector||''}</span><span class="badge b-gold">📊 ${a.company_size||''}</span></div>
+          </div>
+        </div>
+        <div class="pc-grid"><div class="pros-box"><div class="pc-title">✅ المميزات</div>${pros}</div><div class="cons-box"><div class="pc-title">⚠️ العيوب</div>${cons}</div></div>
+        <div class="rec-box"><div class="rec-title">💡 التوصية <span class="badge ${dm[a.decision]||'b-gold'}">${a.decision||''}</span></div><div class="rec-text">${a.recommendation||''}</div></div>
+        ${qs?`<div class="q-title">أسئلة مقترحة</div>${qs}`:''}
+      </div>
+    </div>
+    <button class="reset-btn" onclick="confirmDel(${id});closeModal()" style="margin-top:8px;color:var(--red);border-color:rgba(239,68,68,.3)">🗑️ حذف هذا الكارت</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function handleOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal()}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open')}
+
+function renderStats(){
+  const cards=loadCards();
+  const el=document.getElementById('stats-content');
+  if(!cards.length){el.innerHTML=`<div class="empty"><div class="empty-icon">📊</div><p>لا توجد إحصائيات بعد.<br>ابدأ بمسح بزنس كروت!</p></div>`;return}
+  const total=cards.length;
+  const avg=Math.round(cards.reduce((s,c)=>s+(c.analysis.score||0),0)/total);
+  const rec=cards.filter(c=>c.analysis.decision==='ينصح').length;
+  const std=cards.filter(c=>c.analysis.decision==='يستحق الدراسة').length;
+  const not=cards.filter(c=>c.analysis.decision==='لا ينصح').length;
+  const smap={};cards.forEach(c=>{const s=c.analysis.sector||'أخرى';smap[s]=(smap[s]||0)+1});
+  const sorted=Object.entries(smap).sort((a,b)=>b[1]-a[1]);
+  const mx=sorted[0]?.[1]||1;
+  el.innerHTML=`
+    <div class="stat-sec-title">نظرة عامة</div>
+    <div class="stats-grid" style="margin-bottom:12px">
+      <div class="stat-card"><div class="stat-num" style="color:var(--cyan)">${total}</div><div class="stat-lbl">إجمالي الكروت</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:var(--gold)">${avg}</div><div class="stat-lbl">متوسط التقييم</div></div>
+    </div>
+    <div class="stat-sec-title">قرارات التوصية</div>
+    <div class="rec-stat"><span class="rec-stat-lbl">✅ ينصح بالتعاقد</span><span class="rec-stat-n" style="color:var(--green)">${rec}</span></div>
+    <div class="rec-stat"><span class="rec-stat-lbl">🔍 يستحق الدراسة</span><span class="rec-stat-n" style="color:var(--gold)">${std}</span></div>
+    <div class="rec-stat"><span class="rec-stat-lbl">❌ لا ينصح</span><span class="rec-stat-n" style="color:var(--red)">${not}</span></div>
+    <div class="stat-sec-title">توزيع القطاعات</div>
+    ${sorted.map(([s,n])=>`<div class="sector-stat"><span class="sector-stat-name">${sEmoji(s)} ${s}</span><div class="ssbar-wrap"><div class="ssbar" style="width:${Math.round(n/mx*100)}%"></div></div><span class="sscount">${n}</span></div>`).join('')}
+  `;
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+function sEmoji(s){return{'تقنية':'💻','عقارات':'🏗️','غذاء':'🍽️','صحة':'🏥','تعليم':'🎓','مالية':'💰','طاقة':'⚡','استشارات':'🎯','تجزئة':'🛍️','لوجستيات':'🚚','سياحة':'✈️','إعلام':'📺','أخرى':'🏢'}[s]||'🏢'}
+function sColor(s){return{'تقنية':'#7c3aed','عقارات':'#b45309','غذاء':'#d97706','صحة':'#0891b2','تعليم':'#2563eb','مالية':'#059669','طاقة':'#dc2626','استشارات':'#9333ea','تجزئة':'#db2777','لوجستيات':'#6b7280','سياحة':'#0d9488','إعلام':'#e11d48','أخرى':'#4b5563'}[s]||'#4b5563'}
+function demoData(){return{contact:{name:"أحمد الشمري",title:"مدير المبيعات",company:"تك فيجن",phone:"+966 11 234 5678",mobile:"+966 50 987 6543",email:"a.shamri@techvision.sa",website:"www.techvision.sa",address:"الرياض، حي العليا",linkedin:null},analysis:{sector:"تقنية",industry_detail:"حلول برمجية للشركات",company_size:"متوسطة",score:74,summary:"شركة تقنية ناشئة تقدم حلول ERP وأتمتة الأعمال للقطاع الخاص",pros:["خبرة محلية","دعم عربي","أسعار مرنة"],cons:["حداثة نسبية","تغطية محدودة"],recommendation:"تستحق التقييم للمشاريع المتوسطة. يُنصح بطلب عرض تجريبي أولاً.",decision:"يستحق الدراسة",questions:["كم عدد العملاء الحاليين؟","ما مدة التنفيذ المتوقعة؟"]}}}
+</script>
+</body>
+</html>
