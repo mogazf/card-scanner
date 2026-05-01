@@ -187,6 +187,19 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
 .rec-stat-lbl{flex:1;font-size:13px;font-family:'Tajawal'}
 .rec-stat-n{font-size:14px;font-weight:800}
 
+/* FIXED BOTTOM ACTION BAR */
+.action-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  max-width:480px;margin:0 auto;
+  display:none;
+  padding:10px 16px 20px;
+  background:linear-gradient(0deg,var(--bg) 60%,transparent);
+  z-index:50;
+  gap:8px;
+  flex-direction:column;
+}
+.action-bar.visible{display:flex;}
+
 /* TOAST */
 .toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:#fff;padding:9px 20px;border-radius:12px;font-family:'Tajawal';font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:200;white-space:nowrap;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -198,6 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v2.5</div>
   </div>
   <div class="views">
 
@@ -514,6 +528,11 @@ function buildContactHTML(c,a){
 
 function showResultPanel(r){
   const el=document.getElementById('result-inner');el.style.display='block';
+  // Show fixed action bar
+  const bar=document.getElementById('action-bar');
+  bar.style.display='flex';
+  // Add padding to result so content not hidden behind bar
+  el.style.paddingBottom='120px';
   const{contact:c,analysis:a}=r;
   const{flds,acts,score,sc,circ,dash,dm,pros,cons,qs}=buildContactHTML(c,a);
   el.innerHTML=`
@@ -541,18 +560,45 @@ function showResultPanel(r){
         ${qs?`<div class="q-title">أسئلة مقترحة</div>${qs}`:''}
       </div>
     </div>
-    <button class="save-btn" id="save-btn" onclick="saveCard()">💾 حفظ في مكتبتي</button>
-    <button class="reset-btn" onclick="resetScan()">🔄 مسح جديد</button>
+    <button class="save-btn" id="save-btn" onclick="saveCard()" style="display:none"></button>
+    <button class="reset-btn" onclick="resetScan()" style="display:none"></button>
   `;
 }
 
 function saveCard(){
   if(!pendingResult)return;
-  pendingResult.image=capturedImage;
-  addCard(pendingResult);
-  const btn=document.getElementById('save-btn');
-  btn.disabled=true;btn.textContent='✅ تم الحفظ بنجاح';
-  showToast('✅ تم حفظ الكارت في مكتبتك!');
+  const toSave = JSON.parse(JSON.stringify(pendingResult));
+  // Save tiny thumbnail (100px) instead of full image
+  try {
+    if(capturedImage){
+      const img=new Image();
+      img.onload=()=>{
+        const c=document.createElement('canvas');
+        const max=100;
+        let w=img.width,h=img.height;
+        if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}
+        c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        toSave.image=c.toDataURL('image/jpeg',0.5);
+        _doSave(toSave);
+      };
+      img.src=capturedImage;
+    } else {
+      toSave.image=null;
+      _doSave(toSave);
+    }
+  } catch(e){ toSave.image=null; _doSave(toSave); }
+}
+
+function _doSave(toSave){
+  try{
+    addCard(toSave);
+    const btn=document.getElementById('save-btn');
+    btn.disabled=true;btn.textContent='✅ تم الحفظ بنجاح';
+    showToast('✅ تم حفظ الكارت في مكتبتك!');
+  }catch(e){
+    showToast('❌ فشل الحفظ — حاول مرة ثانية');
+  }
 }
 
 function resetScan(){
@@ -565,6 +611,10 @@ function resetScan(){
   document.getElementById('analyze-btn').disabled=true;
   document.getElementById('result-inner').style.display='none';
   document.getElementById('result-inner').innerHTML='';
+  // Hide action bar
+  document.getElementById('action-bar').style.display='none';
+  const btn=document.getElementById('save-btn-fixed');
+  btn.disabled=false;btn.style.opacity='1';btn.textContent='💾 حفظ في مكتبتي';
 }
 
 function setSort(s){
@@ -700,5 +750,16 @@ function sEmoji(s){return{'تقنية':'💻','عقارات':'🏗️','غذاء
 function sColor(s){return{'تقنية':'#7c3aed','عقارات':'#b45309','غذاء':'#d97706','صحة':'#0891b2','تعليم':'#2563eb','مالية':'#059669','طاقة':'#dc2626','استشارات':'#9333ea','تجزئة':'#db2777','لوجستيات':'#6b7280','سياحة':'#0d9488','إعلام':'#e11d48','أخرى':'#4b5563'}[s]||'#4b5563'}
 function demoData(){return{contact:{name:"أحمد الشمري",title:"مدير المبيعات",company:"تك فيجن",phone:"+966 11 234 5678",mobile:"+966 50 987 6543",email:"a.shamri@techvision.sa",website:"www.techvision.sa",address:"الرياض، حي العليا",linkedin:null},analysis:{sector:"تقنية",industry_detail:"حلول برمجية للشركات",company_size:"متوسطة",score:74,summary:"شركة تقنية ناشئة تقدم حلول ERP وأتمتة الأعمال للقطاع الخاص",pros:["خبرة محلية","دعم عربي","أسعار مرنة"],cons:["حداثة نسبية","تغطية محدودة"],recommendation:"تستحق التقييم للمشاريع المتوسطة. يُنصح بطلب عرض تجريبي أولاً.",decision:"يستحق الدراسة",questions:["كم عدد العملاء الحاليين؟","ما مدة التنفيذ المتوقعة؟"]}}}
 </script>
+
+<!-- FIXED BOTTOM ACTION BAR -->
+<div id="action-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding:10px 16px 24px;background:linear-gradient(0deg,#07090f 70%,transparent);z-index:50;flex-direction:column;gap:8px;">
+  <button id="save-btn-fixed" onclick="saveCard()" style="width:100%;padding:14px;border-radius:14px;border:none;font-family:'Cairo';font-size:15px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#10b981,#059669);color:#fff;">
+    💾 حفظ في مكتبتي
+  </button>
+  <button onclick="resetScan()" style="width:100%;padding:11px;border-radius:12px;border:1px solid #243350;background:transparent;font-family:'Cairo';font-size:13px;color:#718096;cursor:pointer;">
+    🔄 مسح جديد
+  </button>
+</div>
+
 </body>
 </html>
