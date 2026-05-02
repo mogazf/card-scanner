@@ -22,7 +22,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
 .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
 .tab span{display:block;font-size:17px;margin-bottom:2px}
 .views{flex:1;overflow:hidden;position:relative}
-.view{position:absolute;inset:0;overflow-y:auto;display:none;padding-bottom:24px}
+.view{position:absolute;inset:0;overflow-y:auto;display:none;padding-bottom:140px}
 .view.active{display:block}
 .view::-webkit-scrollbar{width:3px}
 .view::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.5</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.6</div>
   </div>
   <div class="views">
 
@@ -578,8 +578,6 @@ function showResultPanel(r){
   // Show fixed action bar
   const bar=document.getElementById('action-bar');
   bar.style.display='flex';
-  // Add padding to result so content not hidden behind bar
-  el.style.paddingBottom='120px';
   const{contact:c,analysis:a}=r;
   const{flds,acts,score,sc,circ,dash,dm,pros,cons,qs}=buildContactHTML(c,a);
   el.innerHTML=`
