@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.2</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.3</div>
   </div>
   <div class="views">
 
@@ -454,36 +454,43 @@ async function analyze(){
     document.getElementById(ids[i]).className='step active';
   }
   try{
-    // Resize image to max 1200px to avoid large payload issues
-    const resizedB64 = await resizeImage(capturedImage, 1200);
+    const resizedB64 = await resizeImage(capturedImage, 900);
     const finalB64 = resizedB64.split(',')[1];
-    const finalMime = resizedB64.split(';')[0].split(':')[1] || 'image/jpeg';
 
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "x-api-key":apiKey,
-        "anthropic-version":"2023-06-01",
-        "anthropic-dangerous-direct-browser-access":"true"
-      },
-      body:JSON.stringify({
-        model:"claude-haiku-4-5-20251001",
-        max_tokens:2000,
-        messages:[{role:"user",content:[
-          {type:"image",source:{type:"base64",media_type:finalMime,data:finalB64}},
-          {type:"text",text:`You are a business analyst expert. Look at this business card image carefully.
+    // Timeout controller - 30 seconds
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 30000);
 
-Step 1: Extract ALL contact information visible on the card.
-Step 2: Based on the company name, industry, and job title — perform a DEEP business analysis. Use your knowledge about this company or similar companies in this sector to provide real insights about their reputation, market position, strengths and weaknesses. Give genuine pros and cons that would help someone decide whether to buy from or partner with this company. Score them honestly (0-100).
+    let res;
+    try{
+      res = await fetch("https://api.anthropic.com/v1/messages",{
+        signal: controller.signal,
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key":apiKey,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true"
+        },
+        body:JSON.stringify({
+          model:"claude-haiku-4-5-20251001",
+          max_tokens:1500,
+          messages:[{role:"user",content:[
+            {type:"image",source:{type:"base64",media_type:"image/jpeg",data:finalB64}},
+            {type:"text",text:`You are a business analyst. Look at this business card carefully.
 
-Return ONLY a raw JSON object with no markdown, no backticks, no extra text:
-{"contact":{"name":"full name","title":"job title","company":"company name","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"one of: تقنية/عقارات/غذاء/صحة/تعليم/مالية/طاقة/استشارات/تجزئة/لوجستيات/سياحة/إعلام/أخرى","industry_detail":"detailed industry description in Arabic","company_size":"صغيرة or متوسطة or كبيرة","score":75,"summary":"3-4 sentences about the company reputation and market position in Arabic","pros":["specific strength 1 in Arabic","specific strength 2 in Arabic","specific strength 3 in Arabic"],"cons":["specific weakness 1 in Arabic","specific weakness 2 in Arabic"],"recommendation":"detailed recommendation in Arabic about whether to buy/partner with them and why","decision":"ينصح or يستحق الدراسة or لا ينصح","questions":["important question to ask them 1 in Arabic","important question to ask them 2 in Arabic"]}}`}
-        ]}]
-      })
-    });
+Return ONLY a raw JSON object, no markdown, no backticks:
+{"contact":{"name":"","title":"","company":"","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"تقنية","industry_detail":"","company_size":"متوسطة","score":70,"summary":"","pros":["","",""],"cons":["",""],"recommendation":"","decision":"يستحق الدراسة","questions":["",""]}}`}
+          ]}]
+        })
+      });
+      clearTimeout(timeout);
+    }catch(fetchErr){
+      clearTimeout(timeout);
+      if(fetchErr.name==='AbortError') throw new Error('انتهت مهلة الاتصال (30 ثانية) — تحقق من الإنترنت');
+      throw new Error('فشل الاتصال بالسيرفر: '+fetchErr.message);
+    }
 
-    // Get raw text first to debug
     const rawText = await res.text();
 
     if(!res.ok){
@@ -494,19 +501,18 @@ Return ONLY a raw JSON object with no markdown, no backticks, no extra text:
 
     let data;
     try{ data=JSON.parse(rawText); }
-    catch{ throw new Error('Server response not JSON: '+rawText.slice(0,80)); }
+    catch{ throw new Error('الرد غير صالح: '+rawText.slice(0,100)); }
 
     await delay(300);
     document.getElementById(ids[4]).className='step done'; await delay(300);
 
     const txt = data.content?.find(b=>b.type==='text')?.text || '';
-    if(!txt) throw new Error('Empty response from API');
+    if(!txt) throw new Error('الرد فارغ من الـ API');
 
-    // Clean and extract JSON
     let clean = txt.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
     const start = clean.indexOf('{');
     const end   = clean.lastIndexOf('}');
-    if(start===-1||end===-1) throw new Error('No JSON object in response. Got: '+clean.slice(0,100));
+    if(start===-1||end===-1) throw new Error('لم يتم العثور على JSON: '+clean.slice(0,100));
     clean = clean.slice(start, end+1);
     pendingResult = JSON.parse(clean);
   }catch(e){
@@ -528,7 +534,7 @@ Return ONLY a raw JSON object with no markdown, no backticks, no extra text:
     return;
   }
   document.getElementById('loading-wrap').style.display='none';
-  document.getElementById('scan-wrap').style.display='block';
+  document.getElementById('scan-wrap').style.display='none';
   ids.forEach(id=>document.getElementById(id).className='step');
   showResultPanel(pendingResult);
 }
@@ -674,6 +680,7 @@ function resetScan(){
   document.getElementById('analyze-btn').disabled=true;
   document.getElementById('result-inner').style.display='none';
   document.getElementById('result-inner').innerHTML='';
+  document.getElementById('scan-wrap').style.display='block';
   // Hide action bar
   document.getElementById('action-bar').style.display='none';
   const btn=document.getElementById('save-btn-fixed');
