@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v2.7</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v2.8</div>
   </div>
   <div class="views">
 
@@ -583,6 +583,34 @@ function showResultPanel(r){
         ${qs?`<div class="q-title">أسئلة مقترحة</div>${qs}`:''}
       </div>
     </div>
+
+    <!-- NOTES SECTION -->
+    <div style="background:var(--s1);border-radius:16px;border:1px solid var(--border2);margin-bottom:10px;overflow:hidden">
+      <div style="padding:12px 16px;background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.05));border-bottom:1px solid var(--border2);font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px">
+        📝 ملاحظاتي الشخصية
+      </div>
+      <div style="padding:12px 16px">
+        <textarea id="user-notes" placeholder="أضف ملاحظاتك هنا... مثال: قابلته في المعرض، مهتم بالمنتج X، يريد عرض أسعار..." 
+          style="width:100%;min-height:90px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'Cairo';font-size:13px;padding:10px 12px;outline:none;resize:none;line-height:1.6;direction:rtl"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <select id="user-priority" style="flex:1;padding:8px 10px;border-radius:9px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Cairo';font-size:12px;outline:none">
+            <option value="">⭐ الأولوية</option>
+            <option value="عالية">🔴 أولوية عالية</option>
+            <option value="متوسطة">🟡 أولوية متوسطة</option>
+            <option value="منخفضة">🟢 أولوية منخفضة</option>
+          </select>
+          <select id="user-status" style="flex:1;padding:8px 10px;border-radius:9px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Cairo';font-size:12px;outline:none">
+            <option value="">📋 الحالة</option>
+            <option value="جديد">🆕 جديد</option>
+            <option value="تم التواصل">📞 تم التواصل</option>
+            <option value="قيد المتابعة">⏳ قيد المتابعة</option>
+            <option value="تم الإغلاق">✅ تم الإغلاق</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
     <button class="save-btn" id="save-btn" onclick="saveCard()" style="display:none"></button>
     <button class="reset-btn" onclick="resetScan()" style="display:none"></button>
   `;
@@ -591,6 +619,10 @@ function showResultPanel(r){
 function saveCard(){
   if(!pendingResult)return;
   const toSave = JSON.parse(JSON.stringify(pendingResult));
+  // Attach user notes
+  toSave.userNotes = document.getElementById('user-notes')?.value?.trim() || '';
+  toSave.userPriority = document.getElementById('user-priority')?.value || '';
+  toSave.userStatus = document.getElementById('user-status')?.value || '';
   // Save tiny thumbnail (100px) instead of full image
   try {
     if(capturedImage){
@@ -713,6 +745,8 @@ function cardItem(c){
       <span class="badge b-blue" style="font-size:10px">${sEmoji(a.sector)} ${a.sector||'غير محدد'}</span>
       ${c.expoName?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(124,58,237,.15);color:#a78bfa;border:1px solid rgba(124,58,237,.3);flex-shrink:0">🏛️ ${c.expoName}</span>`:''}
       <span class="card-score-mini" style="color:${sc}">⭐ ${score}</span>
+      ${c.userStatus?`<span style="font-size:9px;padding:2px 6px;border-radius:20px;background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2)">${c.userStatus}</span>`:''}
+      ${c.userPriority==='عالية'?`<span style="font-size:11px">🔴</span>`:c.userPriority==='متوسطة'?`<span style="font-size:11px">🟡</span>`:c.userPriority==='منخفضة'?`<span style="font-size:11px">🟢</span>`:''}
       <div class="card-actions-mini" onclick="event.stopPropagation()">
         ${num?`<a class="mini-btn mini-wa" href="https://wa.me/${num}" target="_blank">💬</a>`:''}
         ${ct.email?`<a class="mini-btn mini-em" href="mailto:${ct.email}" target="_blank">✉️</a>`:''}
@@ -756,6 +790,37 @@ function openDetail(id){
         ${qs?`<div class="q-title">أسئلة مقترحة</div>${qs}`:''}
       </div>
     </div>
+
+    <!-- NOTES in modal -->
+    <div style="background:var(--s1);border-radius:16px;border:1px solid var(--border2);margin-bottom:10px;overflow:hidden">
+      <div style="padding:12px 16px;background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(245,158,11,.05));border-bottom:1px solid var(--border2);font-size:13px;font-weight:700">📝 ملاحظاتي الشخصية</div>
+      <div style="padding:12px 16px">
+        ${card.userPriority||card.userStatus?`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+          ${card.userPriority?`<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(245,158,11,.12);color:var(--gold);border:1px solid rgba(245,158,11,.3)">${card.userPriority==='عالية'?'🔴':'card.userPriority==='متوسطة'?'🟡':'🟢'} ${card.userPriority}</span>`:''}
+          ${card.userStatus?`<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.25)">${card.userStatus}</span>`:''}
+        </div>`:''}
+        <textarea id="modal-notes-${id}" style="width:100%;min-height:80px;background:var(--s2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:'Cairo';font-size:13px;padding:10px 12px;outline:none;resize:none;line-height:1.6;direction:rtl"
+          placeholder="أضف أو عدّل ملاحظاتك..."
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'">${card.userNotes||''}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <select id="modal-priority-${id}" style="flex:1;padding:8px 10px;border-radius:9px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Cairo';font-size:12px;outline:none">
+            <option value="">⭐ الأولوية</option>
+            <option value="عالية" ${card.userPriority==='عالية'?'selected':''}>🔴 عالية</option>
+            <option value="متوسطة" ${card.userPriority==='متوسطة'?'selected':''}>🟡 متوسطة</option>
+            <option value="منخفضة" ${card.userPriority==='منخفضة'?'selected':''}>🟢 منخفضة</option>
+          </select>
+          <select id="modal-status-${id}" style="flex:1;padding:8px 10px;border-radius:9px;background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Cairo';font-size:12px;outline:none">
+            <option value="">📋 الحالة</option>
+            <option value="جديد" ${card.userStatus==='جديد'?'selected':''}>🆕 جديد</option>
+            <option value="تم التواصل" ${card.userStatus==='تم التواصل'?'selected':''}>📞 تم التواصل</option>
+            <option value="قيد المتابعة" ${card.userStatus==='قيد المتابعة'?'selected':''}>⏳ قيد المتابعة</option>
+            <option value="تم الإغلاق" ${card.userStatus==='تم الإغلاق'?'selected':''}>✅ تم الإغلاق</option>
+          </select>
+        </div>
+        <button onclick="saveNotes(${id})" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--gold),#d97706);color:#000;font-family:'Cairo';font-size:13px;font-weight:800;cursor:pointer">💾 حفظ الملاحظات</button>
+      </div>
+    </div>
+
     <button class="reset-btn" onclick="confirmDel(${id});closeModal()" style="margin-top:8px;color:var(--red);border-color:rgba(239,68,68,.3)">🗑️ حذف هذا الكارت</button>
   `;
   document.getElementById('modal-overlay').classList.add('open');
@@ -913,6 +978,17 @@ window.addEventListener('DOMContentLoaded',()=>{
   initExpo();
   if(getKey())showKeyState(true);
 });
+function saveNotes(id){
+  const cards=loadCards();
+  const idx=cards.findIndex(c=>c.id===id);
+  if(idx===-1)return;
+  cards[idx].userNotes=document.getElementById('modal-notes-'+id)?.value?.trim()||'';
+  cards[idx].userPriority=document.getElementById('modal-priority-'+id)?.value||'';
+  cards[idx].userStatus=document.getElementById('modal-status-'+id)?.value||'';
+  saveCards(cards);
+  showToast('✅ تم حفظ الملاحظات');
+}
+
 function clearExpo(){
   currentExpo=null;
   localStorage.removeItem('currentExpo');
