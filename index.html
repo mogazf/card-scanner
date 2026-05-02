@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v2.8</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v2.9</div>
   </div>
   <div class="views">
 
@@ -337,22 +337,41 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
 
 <script>
 const DB='biz_v3';
-const KEY_STORE='anthro_key';
-function loadCards(){try{return JSON.parse(localStorage.getItem(DB)||'[]')}catch{return[]}}
-function saveCards(a){localStorage.setItem(DB,JSON.stringify(a))}
+const KEY_STORE='anthro_key_v3';
+
+// Storage wrapper - tries localStorage then sessionStorage as fallback
+const Store = {
+  _data: {},
+  get(k){ try{return localStorage.getItem(k)}catch{return this._data[k]||null} },
+  set(k,v){ try{localStorage.setItem(k,v)}catch{} this._data[k]=v; },
+  remove(k){ try{localStorage.removeItem(k)}catch{} delete this._data[k]; }
+};
+
+function loadCards(){try{return JSON.parse(Store.get(DB)||'[]')}catch{return[]}}
+function saveCards(a){Store.set(DB,JSON.stringify(a))}
 function addCard(c){const a=loadCards();c.id=Date.now();c.savedAt=new Date().toISOString();a.unshift(c);saveCards(a);return c}
 function delCard(id){saveCards(loadCards().filter(c=>c.id!==id))}
 
 // ── API KEY MANAGEMENT ──
-function getKey(){return localStorage.getItem(KEY_STORE)||''}
+function getKey(){return Store.get(KEY_STORE)||''}
 function saveKey(){
   const v=document.getElementById('key-input').value.trim();
   if(!v.startsWith('sk-'))return showToast('⚠️ Key يجب أن يبدأ بـ sk-');
-  localStorage.setItem(KEY_STORE,v);
-  showKeyState(true);showToast('✅ تم حفظ API Key');
+  Store.set(KEY_STORE,v);
+  // Verify it saved
+  const check=Store.get(KEY_STORE);
+  if(check===v){
+    showKeyState(true);
+    showToast('✅ تم حفظ API Key');
+  } else {
+    // Keep in memory only
+    Store._data[KEY_STORE]=v;
+    showKeyState(true);
+    showToast('✅ Key محفوظ مؤقتاً (أعد الإدخال عند الفتح مجدداً)');
+  }
 }
 function changeKey(){
-  localStorage.removeItem(KEY_STORE);
+  Store.remove(KEY_STORE);
   document.getElementById('key-input').value='';
   showKeyState(false);
 }
@@ -364,10 +383,6 @@ function showKeyState(saved){
   document.getElementById('key-banner').style.display=saved?'none':'block';
   document.getElementById('key-set-banner').style.display=saved?'block':'none';
 }
-// Init key state on load
-window.addEventListener('DOMContentLoaded',()=>{
-  if(getKey())showKeyState(true);
-});
 
 let capturedImage=null,stream=null,currentSort='date',activeSector='all',pendingResult=null;
 
