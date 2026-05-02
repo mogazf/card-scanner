@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.1</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.2</div>
   </div>
   <div class="views">
 
@@ -468,7 +468,7 @@ async function analyze(){
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-sonnet-4-6",
+        model:"claude-haiku-4-5-20251001",
         max_tokens:2000,
         messages:[{role:"user",content:[
           {type:"image",source:{type:"base64",media_type:finalMime,data:finalB64}},
@@ -513,10 +513,18 @@ Return ONLY a raw JSON object with no markdown, no backticks, no extra text:
     document.getElementById('loading-wrap').style.display='none';
     document.getElementById('scan-wrap').style.display='block';
     ids.forEach(id=>document.getElementById(id).className='step');
-    const msg=e.message||'';
-    if(msg.includes('401'))showToast('❌ API Key غير صحيح');
-    else if(msg.includes('429'))showToast('⚠️ تجاوزت الحد، حاول لاحقاً');
-    else showToast('❌ '+msg.slice(0,80));
+    const msg=e.message||'خطأ غير معروف';
+    // Show persistent error box
+    const errBox=document.getElementById('result-inner');
+    errBox.style.display='block';
+    errBox.innerHTML=`
+      <div style="margin:0 0 12px;padding:14px;border-radius:14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)">
+        <div style="font-size:13px;font-weight:800;color:#ef4444;margin-bottom:8px">❌ فشل التحليل</div>
+        <div style="font-size:12px;font-family:monospace;color:#fca5a5;word-break:break-all;direction:ltr;line-height:1.6">${msg}</div>
+        ${msg.includes('401')||msg.includes('403')?'<div style="font-size:12px;color:#fca5a5;margin-top:8px;font-family:Tajawal">⚠️ API Key غير صحيح أو منتهي — اضغط تغيير وأدخل key جديد</div>':''}
+        ${msg.includes('429')?'<div style="font-size:12px;color:#fca5a5;margin-top:8px;font-family:Tajawal">⚠️ تجاوزت الحد المسموح — انتظر دقيقة وحاول مرة ثانية</div>':''}
+      </div>
+    `;
     return;
   }
   document.getElementById('loading-wrap').style.display='none';
