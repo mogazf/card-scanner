@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.3</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.4</div>
   </div>
   <div class="views">
 
@@ -448,24 +448,29 @@ async function analyze(){
   document.getElementById('loading-wrap').style.display='block';
   document.getElementById('result-inner').style.display='none';
   const ids=['s1','s2','s3','s4','s5'];
-  for(let i=0;i<ids.length;i++){
-    await delay(560);
-    if(i>0)document.getElementById(ids[i-1]).className='step done';
-    document.getElementById(ids[i]).className='step active';
-  }
+  // Start step animation in parallel with fetch
+  let stepIdx=0;
+  document.getElementById(ids[0]).className='step active';
+  const stepTimer=setInterval(()=>{
+    if(stepIdx<ids.length-1){
+      document.getElementById(ids[stepIdx]).className='step done';
+      stepIdx++;
+      document.getElementById(ids[stepIdx]).className='step active';
+    }
+  },1200);
   try{
-    const resizedB64 = await resizeImage(capturedImage, 900);
+    const resizedB64 = await resizeImage(capturedImage, 800);
     const finalB64 = resizedB64.split(',')[1];
 
-    // Timeout controller - 30 seconds
     const controller = new AbortController();
-    const timeout = setTimeout(()=>controller.abort(), 30000);
+    const timeout = setTimeout(()=>controller.abort(), 45000);
 
     let res;
     try{
       res = await fetch("https://api.anthropic.com/v1/messages",{
         signal: controller.signal,
         method:"POST",
+        mode:"cors",
         headers:{
           "Content-Type":"application/json",
           "x-api-key":apiKey,
@@ -477,18 +482,20 @@ async function analyze(){
           max_tokens:1500,
           messages:[{role:"user",content:[
             {type:"image",source:{type:"base64",media_type:"image/jpeg",data:finalB64}},
-            {type:"text",text:`You are a business analyst. Look at this business card carefully.
+            {type:"text",text:`You are a business analyst expert. Look at this business card image carefully and extract all visible text.
 
-Return ONLY a raw JSON object, no markdown, no backticks:
-{"contact":{"name":"","title":"","company":"","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"تقنية","industry_detail":"","company_size":"متوسطة","score":70,"summary":"","pros":["","",""],"cons":["",""],"recommendation":"","decision":"يستحق الدراسة","questions":["",""]}}`}
+IMPORTANT: Reply with ONLY a valid JSON object. No markdown fences, no explanation, just raw JSON.
+
+{"contact":{"name":"full name from card","title":"job title","company":"company name","phone":null,"mobile":null,"email":null,"website":null,"address":null,"linkedin":null},"analysis":{"sector":"one of: تقنية/عقارات/غذاء/صحة/تعليم/مالية/طاقة/استشارات/تجزئة/لوجستيات/سياحة/إعلام/أخرى","industry_detail":"describe industry in Arabic","company_size":"صغيرة or متوسطة or كبيرة","score":70,"summary":"3 sentences about company in Arabic","pros":["strength 1 in Arabic","strength 2 in Arabic","strength 3 in Arabic"],"cons":["weakness 1 in Arabic","weakness 2 in Arabic"],"recommendation":"detailed recommendation in Arabic","decision":"ينصح or يستحق الدراسة or لا ينصح","questions":["question 1 in Arabic","question 2 in Arabic"]}}`}
           ]}]
         })
       });
       clearTimeout(timeout);
     }catch(fetchErr){
       clearTimeout(timeout);
-      if(fetchErr.name==='AbortError') throw new Error('انتهت مهلة الاتصال (30 ثانية) — تحقق من الإنترنت');
-      throw new Error('فشل الاتصال بالسيرفر: '+fetchErr.message);
+      clearInterval(stepTimer);
+      if(fetchErr.name==='AbortError') throw new Error('انتهت مهلة الاتصال — تحقق من الإنترنت وحاول مرة ثانية');
+      throw new Error('فشل الاتصال: '+fetchErr.message);
     }
 
     const rawText = await res.text();
@@ -520,6 +527,7 @@ Return ONLY a raw JSON object, no markdown, no backticks:
     document.getElementById('scan-wrap').style.display='block';
     ids.forEach(id=>document.getElementById(id).className='step');
     const msg=e.message||'خطأ غير معروف';
+    clearInterval(stepTimer);
     // Show persistent error box
     const errBox=document.getElementById('result-inner');
     errBox.style.display='block';
@@ -533,6 +541,8 @@ Return ONLY a raw JSON object, no markdown, no backticks:
     `;
     return;
   }
+  clearInterval(stepTimer);
+  ids.forEach(id=>document.getElementById(id).className='step done');
   document.getElementById('loading-wrap').style.display='none';
   document.getElementById('scan-wrap').style.display='none';
   ids.forEach(id=>document.getElementById(id).className='step');
