@@ -211,7 +211,7 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text)}
     <div class="tab active" onclick="switchTab('scan')"><span>📷</span>مسح</div>
     <div class="tab" onclick="switchTab('cards')"><span>📇</span>الكروت</div>
     <div class="tab" onclick="switchTab('stats')"><span>📊</span>إحصائيات</div>
-    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.4</div>
+    <div style="position:absolute;top:5px;left:8px;font-size:10px;color:#00d4ff;font-family:monospace;font-weight:700">v3.5</div>
   </div>
   <div class="views">
 
@@ -1021,6 +1021,7 @@ function clearExpo(){
   showToast('✅ الآن تمسح بدون معرض');
 }
 
+function delay(ms){return new Promise(r=>setTimeout(r,ms))}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 function sEmoji(s){return{'تقنية':'💻','عقارات':'🏗️','غذاء':'🍽️','صحة':'🏥','تعليم':'🎓','مالية':'💰','طاقة':'⚡','استشارات':'🎯','تجزئة':'🛍️','لوجستيات':'🚚','سياحة':'✈️','إعلام':'📺','أخرى':'🏢'}[s]||'🏢'}
 function sColor(s){return{'تقنية':'#7c3aed','عقارات':'#b45309','غذاء':'#d97706','صحة':'#0891b2','تعليم':'#2563eb','مالية':'#059669','طاقة':'#dc2626','استشارات':'#9333ea','تجزئة':'#db2777','لوجستيات':'#6b7280','سياحة':'#0d9488','إعلام':'#e11d48','أخرى':'#4b5563'}[s]||'#4b5563'}
